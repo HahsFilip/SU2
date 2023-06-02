@@ -370,7 +370,8 @@ def read_config(filename):
 
         assert this_param not in data_dict, ('Config file has multiple specifications of %s' % this_param )
         for case in switch(this_param):
-
+            if case("CHECKPOINT"):
+                data_dict[this_param] = this_value
             # comma delimited lists of strings with or without paren's
             if case("MARKER_EULER")      or\
                case("MARKER_FAR")        or\
