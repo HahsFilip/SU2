@@ -81,16 +81,34 @@ def main():
     checkpoints( options.filename)
 
 #: main()
+def start_from_checkpoint(needed_step, checkpoint_array, conf):
+    konfig = copy.deepcopy(conf)
+    restart_point = min(checkpoint_array, key=lambda x:abs(x-needed_step));
+    time_step = 1
+    current_iter = restart_point
+    for i in range(needed_step-restart_point):
+        sys.stdout.write(str(i))
+
+        konfig['TIME_ITER'] = current_iter + time_step+1
+        konfig['RESTART_ITER'] = current_iter+1
+        SU2.run.direct(konfig)
+
+        current_iter += time_step
+        if current_iter-3 not in checkpoint_array and current_iter-2 not in checkpoint_array:
+            if current_iter-2 < 10:
+                os.remove("restart_flow_0000"+str(current_iter-2)+".dat")
+            else:
+                os.remove("restart_flow_000"+str(current_iter-2)+".dat")
 
 def checkpoints( filename, partitions  = 0):
     # Config
     config = SU2.io.Config(filename)
     config.NUMBER_PART = partitions
-
-
+    sys.stdout.write(str(filename))
+    tmp_file_name = "/home/filip/SU2/SU2Tutorials/design/Unsteady_Shape_Opt_NACA0012/unsteady_naca0012_opt_dump.cfg"
     # State
     state = SU2.io.State()
-
+    
     state.find_files(config)
     current_iter = 1
     time_step = 1
@@ -99,23 +117,32 @@ def checkpoints( filename, partitions  = 0):
     SU2.run.direct(config)
     config['RESTART_SOL'] = 'YES'
     current_iter += 1
-    check_pts = range(3,100,10)
-    for i in range(100):
+    check_pts = range(0,25,10)
+
+    for i in range(25):
         sys.stdout.write(str(i))
         
         config['TIME_ITER'] = current_iter + time_step
         config['RESTART_ITER'] = current_iter
         current_iter += time_step
         SU2.run.direct(config)
-        if i not in check_pts:
-            if i < 10:
+        if current_iter-3 not in check_pts and current_iter-2 not in check_pts:
+            if current_iter-3 < 10:
                 os.remove("restart_flow_0000"+str(current_iter-3)+".dat")
             else:
                 os.remove("restart_flow_000"+str(current_iter-3)+".dat")
 
+    start_from_checkpoint(13, check_pts, config)
 
+    config['MATH_PROBLEM'] = 'DISCRETE_ADJOINT'
+    config['UNST_ADJOINT_ITER'] = current_iter-1
+    config['TIME_ITER'] = 1
+    config['RESTART_SOL'] = 'NO'
+    config['GRADIENT_METHOD'] = 'DISCRETE_ADJOINT'
+    # SU2.run.adjoint(config)
 
     
+
 
 #: shape_optimization()
 
