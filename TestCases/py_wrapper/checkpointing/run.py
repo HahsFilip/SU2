@@ -27,11 +27,12 @@ def calc_direct(start_iter, n_steps, checkpoints, cfg_file):
         SU2Driver.Run()
         # Postprocess the solver and exit cleanly
         SU2Driver.Postprocess()
-        if time_iter in checkpoints:
+        if time_iter in checkpoints or time_iter+1 in checkpoints:
             SU2Driver.Output(time_iter+start_iter)
         # Update the solver for the next time iteration
         SU2Driver.Update()
-    SU2Driver.Output(time_iter+start_iter)
+    if number_of_timesteps != 0:
+        SU2Driver.Output(time_iter+start_iter)
     SU2Driver.Finalize()
     os.remove("tmp.cfg")
 
@@ -57,43 +58,24 @@ def main():
         print("Closest checkpoint")
         print(closest_checkpoint)
         print(number_of_steps - closest_checkpoint-i)
-        calc_direct(closest_checkpoint, number_of_steps - closest_checkpoint-i-1, checkpoints, "common.cfg")
+        if number_of_steps - closest_checkpoint-i == 1:
+            
+            closest_checkpoint = checkpoints[checkpoints.index(closest_checkpoint)-1]
+            calc_direct(closest_checkpoint, number_of_steps - closest_checkpoint-i-1+interval_between_checkpoints, checkpoints, "common.cfg")
+        else:
+            calc_direct(closest_checkpoint, number_of_steps - closest_checkpoint-i-1, checkpoints, "common.cfg")
         print("got here")
         SU2DriverAD.Preprocess(i)
-        SU2DriverAD.Run()
+        SU2DriverAD.Run()        
         SU2DriverAD.Postprocess()
         SU2DriverAD.Update()
-        SU2DriverAD.Monitor(i)
-
         SU2DriverAD.Output(i)
-        os.remove("restart_flow_"+str(number_of_steps - i).zfill(5)+".dat")
+        if i > 1:
+            os.remove("restart_flow_"+str(number_of_steps - i+1).zfill(5)+".dat")
     SU2DriverAD.Finalize()
         
         
-    # try:
-    #     SU2Driver = pysu2.CSinglezoneDriver("/home/filip/SU2/SU2/TestCases/py_wrapper/checkpointing/unsteady_naca0012_opt.cfg", 1, comm)
-    # except TypeError as exception:
-    #     print('A TypeError occured in pysu2.CDriver : ',exception)
-    
-
-    # number_of_timesteps = SU2Driver.GetNumberTimeIter()
-    # checkpoints = range(0, number_of_timesteps+1, interval_between_checkpoints)
-
-    # for time_iter in range(number_of_timesteps):
-    #     SU2Driver.Preprocess(time_iter)
-    #     SU2Driver.Run()
-    #     # Postprocess the solver and exit cleanly
-    #     SU2Driver.Postprocess()
-    #     if time_iter in checkpoints:
-    #         SU2Driver.Output(time_iter)
-    #     # Update the solver for the next time iteration
-    #     SU2Driver.Update()
-    # SU2Driver.Finalize()
-
-    # SU2DriverAD.Preprocess(0)
-    # SU2DriverAD.Run()
-    # SU2DriverAD.Postprocess()
-    # SU2DriverAD.Output(0)
+   
 
 if __name__ == '__main__':
     main()
