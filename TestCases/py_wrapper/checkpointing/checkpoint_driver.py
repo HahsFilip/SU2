@@ -49,6 +49,11 @@ class CheckpointDriver:
                 if j != k:
                     if self.checkpoints[j].i <= self.checkpoints[k].i and self.checkpoints[j].level < self.checkpoints[k].level:
                         self.checkpoints[j].dispensable = True      
+    def advance_adjoint(self, i):
+        # calcualte from i to i - 1
+        assert i > 0
+         
+    
     def print_checkpoints(self):
         for point in self.checkpoints:
             print(str(point.i) + "  " + str(point.level) + "  " + str(point.dispensable))
