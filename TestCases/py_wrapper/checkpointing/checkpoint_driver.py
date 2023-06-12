@@ -9,7 +9,7 @@ class CheckpointDriver:
     
     delta = 0
     n_of_points = 0
-    
+    number_of_timesteps = 0
     def __init__(self, d) -> None:
         self.delta = d
         self.checkpoints.append(Checkpoints(0,1000000))
@@ -52,8 +52,16 @@ class CheckpointDriver:
     def advance_adjoint(self, i):
         # calcualte from i to i - 1
         assert i > 0
+        current_checkpoints = self.get_checkpoint_locations()
+        if i-1 in current_checkpoints:
+            self.number_of_timesteps -= 1
+            
          
-    
+    def get_checkpoint_locations(self):
+        check_pts = []
+        for point in self.checkpoints:
+            check_pts.append(point.i)
+        return check_pts
     def print_checkpoints(self):
         for point in self.checkpoints:
             print(str(point.i) + "  " + str(point.level) + "  " + str(point.dispensable))
