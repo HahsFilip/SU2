@@ -10,6 +10,7 @@ class Checkpoints:
         self.i = i
         self.level = l
         self.dispensable = False
+        
         pass
 class CheckpointDriver:
     checkpoints  = []
@@ -27,10 +28,12 @@ class CheckpointDriver:
         self.ad_comm = MPI.COMM_WORLD
         self.ad_rank = self.ad_comm.Get_rank()
         self.SU2DriverAD = pysu2ad.CDiscAdjSinglezoneDriver(self.adjoint_cfg, 1, self.ad_comm)     
-
+        self.direct_computation_number = 0
         pass
     def advance_solution(self, i):
         # i: iteration from which to restart
+        # save computation number for analysis
+        self.direct_computation_number += 1
         self.n_of_points = len(self.checkpoints)
         assert i in self.get_checkpoint_locations() or i == 0
 
@@ -53,6 +56,7 @@ class CheckpointDriver:
         SU2Driver.Run()
         SU2Driver.Postprocess()
         SU2Driver.Output(i+1)
+        SU2Driver.Finalize()
         # print("n of points" + str(self.n_of_points))
         is_dispensable = False
         ind_of_max_disp = 0
@@ -101,27 +105,40 @@ class CheckpointDriver:
         
         if i-1 in current_checkpoints:
             self.number_of_timesteps -= 1
+            self.SU2DriverAD.Preprocess(i)
+            self.SU2DriverAD.Run()
+            self.SU2DriverAD.Postprocess()
+            self.SU2DriverAD.Output(i)
+            self.SU2DriverAD.Update()
             self.checkpoints.pop(current_checkpoints.index(i-1))
            
         else:
             closest_checkpoint = max([j for j in current_checkpoints if  i-1 > j])
             restart_checkpoint = self.checkpoints[current_checkpoints.index(closest_checkpoint)]
             for j in range(i-restart_checkpoint.i-1):
-                # print(self.n_of_points)
-                # print(self.get_checkpoint_locations())
                 self.advance_solution(restart_checkpoint.i+j)
+
             new_checkpoints = self.get_checkpoint_locations()
             self.number_of_timesteps -=1
-            os.remove("restart_flow_"+str(self.checkpoints[new_checkpoints.index(i-1)].i).zfill(5)+".dat")
-
-            self.checkpoints.pop(new_checkpoints.index(i-1))
-
-
-        print(i-1)
-
-    
+            self.SU2DriverAD.Preprocess(i)
+            self.SU2DriverAD.Run()
+            self.SU2DriverAD.Postprocess()
+            self.SU2DriverAD.Output(i)
+            self.SU2DriverAD.Update()
             
-         
+            os.remove("restart_flow_"+str(self.checkpoints[new_checkpoints.index(i-1)].i).zfill(5)+".dat")
+            self.checkpoints.pop(new_checkpoints.index(i-1))
+        print(i-1)
+    def garbage_collector(self):
+        for i in range(self.SU2DriverAD.GetNumberTimeIter()):
+           
+            if i not in self.get_checkpoint_locations():
+                try:
+                    os.remove("restart_flow_"+str(i).zfill(5)+".dat")
+                except:
+                    pass
+              
+        
     def get_checkpoint_locations(self):
         check_pts = []
         for point in self.checkpoints:
@@ -137,18 +154,31 @@ def main():
     for item in test:
         if item.endswith(".dat") or item.endswith(".vtu") :
             os.remove(os.path.join("/home/filip/SU2/SU2/TestCases/py_wrapper/checkpointing", item))
-    driver = CheckpointDriver(6, "common.cfg", "unsteady_naca0012_opt_ad.cfg")
+
+    driver = CheckpointDriver(15, "common.cfg", "unsteady_naca0012_opt_ad.cfg")
+    
     for i in range(30):
         driver.advance_solution(i)
-        # driver.print_checkpoints()
+        print(driver.get_checkpoint_locations)
     print("begining adjoint run")
-    for i in range(31,1, -1):
-        # driver.print_checkpoints()
+    for i in range(31,0, -1):
+        driver.garbage_collector()
+      
         print(driver.get_checkpoint_locations())
-
-        # print(driver.n_of_points)
+        
         driver.advance_adjoint(i)
-        # driver.print_checkpoints()
+        
+    for i in range(31):
+        os.rename("restart_adj_cd_"+str(i+1).zfill(5)+".dat","restart_adj_cd_"+str(i).zfill(5)+".dat")
+    # os.system("cp" + "restart_adj_cd_"+str(i).zfill(5)+".dat","restart_adj_cd_"+str(i+1).zfill(5)+".dat")
+    driver.SU2DriverAD.Finalize()
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+    
+    deform_driver = pysu2ad.CDiscAdjDeformationDriver("unsteady_naca0012_opt_ad.cfg", comm)  
+    deform_driver.Preprocess()
+    deform_driver.Run()
+    deform_driver.Finalize()
 
 if __name__ == "__main__":
     """ This is executed when run from the command line """
