@@ -27,7 +27,7 @@ class CheckpointDriver:
         self.adjoint_cfg = adjoint_conf
         self.ad_comm = MPI.COMM_WORLD
         self.ad_rank = self.ad_comm.Get_rank()
-        self.SU2DriverAD = pysu2ad.CDiscAdjSinglezoneDriver(self.adjoint_cfg, 1, self.ad_comm)     
+        self.SU2DriverAD = pysu2ad.CDiscAdjSinglezoneDriver(self.adjoint_cfg, 1,1)     
         self.direct_computation_number = 0
         pass
     def advance_solution(self, i):
@@ -51,7 +51,7 @@ class CheckpointDriver:
             conf.write("MATH_PROBLEM= DIRECT\n")
             conf.close()
 
-        SU2Driver = pysu2.CSinglezoneDriver("tmp.cfg", 1, comm)
+        SU2Driver = pysu2.CSinglezoneDriver("tmp.cfg", 1, 1)
         SU2Driver.Preprocess(i+1)
         SU2Driver.Run()
         SU2Driver.Postprocess()
@@ -148,38 +148,43 @@ class CheckpointDriver:
         for point in self.checkpoints:
             print(str(point.i) + "  " + str(point.level) + "  " + str(point.dispensable))
 
+    def run_calculation(self, n_of_timesteps):
+        for i in range(n_of_timesteps):
+            self.advance_solution(i)
+            print(self.get_checkpoint_locations)
+        print("Begining adjoint run")
+        for i in range(n_of_timesteps+1,0, -1):
+            self.garbage_collector()        
+            self.advance_adjoint(i)
+        for i in range(n_of_timesteps+1):
+            os.rename("restart_adj_cd_"+str(i+1).zfill(5)+".dat","restart_adj_cd_"+str(i).zfill(5)+".dat")
+    def deform(self):
+        os.system("SU2_DOT_AD "+ self.adjoint_cfg)
+        os.system("SU2_DEF "+ self.adjoint_cfg)
+    def __del__(self):
+        self.SU2DriverAD.Finalize()
 def main():
     test = os.listdir("/home/filip/SU2/SU2/TestCases/py_wrapper/checkpointing")
 
     for item in test:
-        if item.endswith(".dat") or item.endswith(".vtu") :
+        if item.endswith(".dat") or item.endswith(".vtu"):
             os.remove(os.path.join("/home/filip/SU2/SU2/TestCases/py_wrapper/checkpointing", item))
-
-    driver = CheckpointDriver(15, "common.cfg", "unsteady_naca0012_opt_ad.cfg")
     
-    for i in range(30):
-        driver.advance_solution(i)
-        print(driver.get_checkpoint_locations)
-    print("begining adjoint run")
-    for i in range(31,0, -1):
-        driver.garbage_collector()
-      
-        print(driver.get_checkpoint_locations())
-        
-        driver.advance_adjoint(i)
-        
-    for i in range(31):
-        os.rename("restart_adj_cd_"+str(i+1).zfill(5)+".dat","restart_adj_cd_"+str(i).zfill(5)+".dat")
-    # os.system("cp" + "restart_adj_cd_"+str(i).zfill(5)+".dat","restart_adj_cd_"+str(i+1).zfill(5)+".dat")
-    driver.SU2DriverAD.Finalize()
-    comm = MPI.COMM_WORLD
-    rank = comm.Get_rank()
-    
-    deform_driver = pysu2ad.CDiscAdjDeformationDriver("unsteady_naca0012_opt_ad.cfg", comm)  
-    deform_driver.Preprocess()
-    deform_driver.Run()
-    deform_driver.Finalize()
+    os.system("cp unsteady_naca0012_FFD.su2 mesh_in.su2")
+    test = os.listdir("/home/filip/SU2/SU2/TestCases/py_wrapper/checkpointing")
 
+    for i in range(3):
+
+        for item in test:
+            if item.endswith(".dat"):
+                os.remove(os.path.join("/home/filip/SU2/SU2/TestCases/py_wrapper/checkpointing", item))
+
+        driver = CheckpointDriver(10, "common.cfg", "unsteady_naca0012_opt_ad.cfg")
+        driver.run_calculation(29)
+        driver.deform()
+        del driver
+        os.rename("surface_deformed_00000.vtu", "surface_deformed_"+str(i).zfill(5)+".vtu")
+        os.rename("mesh_out.su2", "mesh_in.su2")
 if __name__ == "__main__":
     """ This is executed when run from the command line """
     main()

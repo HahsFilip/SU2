@@ -53,7 +53,7 @@ def main():
     calc_direct( 0,number_of_steps, checkpoints,"common.cfg")
     SU2DriverAD = pysu2ad.CDiscAdjSinglezoneDriver("/home/filip/SU2/SU2/TestCases/py_wrapper/checkpointing/unsteady_naca0012_opt_ad.cfg", 1, comm)     
 
-    for i in range(SU2DriverAD.GetNumberTimeIter()-1):
+    for i in range(100-1):
         closest_checkpoint = max([j for j in checkpoints if number_of_steps - i > j])
         print("Closest checkpoint")
         print(closest_checkpoint)
@@ -70,12 +70,12 @@ def main():
         SU2DriverAD.Run()        
         SU2DriverAD.Postprocess()
         SU2DriverAD.Update()
-        # SU2DriverAD.Output(i)
+        SU2DriverAD.Output(i)
         if i > 1:
             os.remove("restart_flow_"+str(number_of_steps - i+1).zfill(5)+".dat")
             # os.remove("restart_flow_"+str(number_of_steps - i+1).zfill(5)+".vtu")
 
-    SU2DriverAD.Finalize()
+    # SU2DriverAD.Finalize()
         
         
    
