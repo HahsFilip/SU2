@@ -48,7 +48,7 @@ class CheckpointDriver:
             else:
                 conf.write("RESTART_SOL= YES\n")
                 conf.write("RESTART_ITER= " + str(i+1) + "\n")
-            conf.write("MATH_PROBLEM= DIRECT\n")
+            # conf.write("MATH_PROBLEM= DIRECT\n")
             conf.close()
 
         SU2Driver = pysu2.CSinglezoneDriver("tmp.cfg", 1, 1)
@@ -158,9 +158,7 @@ class CheckpointDriver:
             self.advance_adjoint(i)
         for i in range(n_of_timesteps+1):
             os.rename("restart_adj_cd_"+str(i+1).zfill(5)+".dat","restart_adj_cd_"+str(i).zfill(5)+".dat")
-    def deform(self):
-        os.system("SU2_DOT_AD "+ self.adjoint_cfg)
-        os.system("SU2_DEF "+ self.adjoint_cfg)
+
     def __del__(self):
         self.SU2DriverAD.Finalize()
 def main():
@@ -173,7 +171,7 @@ def main():
     os.system("cp unsteady_naca0012_FFD.su2 mesh_in.su2")
     test = os.listdir("/home/filip/SU2/SU2/TestCases/py_wrapper/checkpointing")
 
-    for i in range(3):
+    for i in range(1):
 
         for item in test:
             if item.endswith(".dat"):
@@ -181,7 +179,7 @@ def main():
 
         driver = CheckpointDriver(10, "common.cfg", "unsteady_naca0012_opt_ad.cfg")
         driver.run_calculation(29)
-        driver.deform()
+
         del driver
         os.rename("surface_deformed_00000.vtu", "surface_deformed_"+str(i).zfill(5)+".vtu")
         os.rename("mesh_out.su2", "mesh_in.su2")
