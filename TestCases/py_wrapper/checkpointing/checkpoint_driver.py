@@ -27,7 +27,7 @@ class CheckpointDriver:
         self.adjoint_cfg = adjoint_conf
         self.ad_comm = MPI.COMM_WORLD
         self.ad_rank = self.ad_comm.Get_rank()
-        self.SU2DriverAD = pysu2ad.CDiscAdjSinglezoneDriver(self.adjoint_cfg, 1,self.ad_comm )     
+        self.SU2DriverAD = pysu2ad.CDiscAdjSinglezoneDriver(self.adjoint_cfg, 1,1 )     
         self.direct_computation_number = 0
         pass
     def advance_solution(self, i):
@@ -51,7 +51,7 @@ class CheckpointDriver:
             # conf.write("MATH_PROBLEM= DIRECT\n")
             conf.close()
 
-        SU2Driver = pysu2.CSinglezoneDriver("tmp.cfg", 1, comm)
+        SU2Driver = pysu2.CSinglezoneDriver("tmp.cfg", 1, 1)
         SU2Driver.Preprocess(i+1)
         SU2Driver.Run()
         SU2Driver.Postprocess()

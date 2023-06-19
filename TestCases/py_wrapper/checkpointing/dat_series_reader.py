@@ -1,6 +1,6 @@
 import glob
 import os
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 class DatSeriesReader:
     extension = ".dat"
     all_data = [] 

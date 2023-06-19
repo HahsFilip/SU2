@@ -6,7 +6,7 @@ from dat_series_reader import DatSeriesReader
 class CheckpointOptimizer:
     dir_conf_path = "base.cfg"
     ad_conf_path = "base_ad.cfg"
-    checkpoint_number = 10
+    checkpoint_number = 250
 
     def __init__(self, conf_file):
         
@@ -26,7 +26,7 @@ class CheckpointOptimizer:
     def run_calculation(self):
         reader = DatSeriesReader("0_history",1)
 
-        for j in range(3):
+        for j in range(10):
             self.driver = CheckpointDriver(self.checkpoint_number, self.dir_conf_path, self.ad_conf_path)
             self.driver.run_calculation(self.iter_number-1)
             reader.update_files()
@@ -34,14 +34,14 @@ class CheckpointOptimizer:
             state = SU2.run.projection(self.ad_config)
             gradients = state['GRADIENTS']['DRAG']
             for i in range(len(gradients)):
-                gradients[i] = gradients[i]*10000
+                gradients[i] = -gradients[i]*10
             
             self.ad_config.unpack_dvs(gradients)
             SU2.run.DEF(self.ad_config)
             os.rename("mesh_out.su2", "mesh_in.su2")
-            os.rename("surface_deformed_00000.vtu", "surface_deformed_"+str(j).zfill(5)+".vtu")
+            os.rename("surface_deformed_00000.vtu", "surface_deformed_"+str(j+1).zfill(5)+".vtu")
             reader.remove_files()
-        print(reader.get_mean["CD"])
+        print(reader.get_mean("CD"))
 def main():
     os.system("cp unsteady_naca0012_FFD.su2 mesh_in.su2")
     os.system("rm *.vtu")
