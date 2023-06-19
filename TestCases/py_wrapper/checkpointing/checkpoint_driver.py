@@ -12,6 +12,8 @@ class Checkpoints:
         self.dispensable = False
         
         pass
+
+
 class CheckpointDriver:
     checkpoints  = []
     
@@ -20,14 +22,18 @@ class CheckpointDriver:
     number_of_timesteps = 0
     direct_cfg = ""
     adjoint_cfg = ""
-    def __init__(self, d, direct_conf, adjoint_conf) -> None:
+    def __init__(self, d, direct_conf, adjoint_conf, run=True) -> None:
         self.delta = d
         self.checkpoints.append(Checkpoints(0,1000000))
         self.direct_cfg = direct_conf
         self.adjoint_cfg = adjoint_conf
         self.ad_comm = MPI.COMM_WORLD
         self.ad_rank = self.ad_comm.Get_rank()
-        self.SU2DriverAD = pysu2ad.CDiscAdjSinglezoneDriver(self.adjoint_cfg, 1,1 )     
+        if run:
+            self.run = True
+            self.SU2DriverAD = pysu2ad.CDiscAdjSinglezoneDriver(self.adjoint_cfg, 1,self.ad_comm )     
+        else:
+            self.run = False
         self.direct_computation_number = 0
         pass
     def advance_solution(self, i):
@@ -36,27 +42,27 @@ class CheckpointDriver:
         self.direct_computation_number += 1
         self.n_of_points = len(self.checkpoints)
         assert i in self.get_checkpoint_locations() or i == 0
-
-        comm = MPI.COMM_WORLD
-        rank = comm.Get_rank()
+        if self.run:
+            comm = MPI.COMM_WORLD
+            rank = comm.Get_rank()
         
-        os.system("cp " + self.direct_cfg + " " + "tmp.cfg")
-        with open("tmp.cfg", "a") as conf:
-            if i == 0:
-                conf.write("RESTART_SOL= NO\n")
-                
-            else:
-                conf.write("RESTART_SOL= YES\n")
-                conf.write("RESTART_ITER= " + str(i+1) + "\n")
-            # conf.write("MATH_PROBLEM= DIRECT\n")
-            conf.close()
-
-        SU2Driver = pysu2.CSinglezoneDriver("tmp.cfg", 1, 1)
-        SU2Driver.Preprocess(i+1)
-        SU2Driver.Run()
-        SU2Driver.Postprocess()
-        SU2Driver.Output(i+1)
-        SU2Driver.Finalize()
+            os.system("cp " + self.direct_cfg + " " + "tmp.cfg")
+            with open("tmp.cfg", "a") as conf:
+                if i == 0:
+                    conf.write("RESTART_SOL= NO\n")
+                    
+                else:
+                    conf.write("RESTART_SOL= YES\n")
+                    conf.write("RESTART_ITER= " + str(i+1) + "\n")
+                # conf.write("MATH_PROBLEM= DIRECT\n")
+                conf.close()
+        
+            SU2Driver = pysu2.CSinglezoneDriver("tmp.cfg", 1, comm)
+            SU2Driver.Preprocess(i+1)
+            SU2Driver.Run()
+            SU2Driver.Postprocess()
+            SU2Driver.Output(i+1)
+            SU2Driver.Finalize()
         # print("n of points" + str(self.n_of_points))
         is_dispensable = False
         ind_of_max_disp = 0
@@ -77,7 +83,8 @@ class CheckpointDriver:
         else:
             if is_dispensable:
                 # print("removed cp: " + str(ind_of_max_disp))
-                os.remove("restart_flow_"+str(self.checkpoints[ind_of_max_disp].i).zfill(5)+".dat")
+                if self.run:
+                    os.remove("restart_flow_"+str(self.checkpoints[ind_of_max_disp].i).zfill(5)+".dat")
 
                 self.checkpoints.pop(ind_of_max_disp)
 
@@ -89,7 +96,8 @@ class CheckpointDriver:
                 index_to_remove = self.checkpoints[-1].i
 
                 self.checkpoints.pop(-1)
-                os.remove("restart_flow_"+str(index_to_remove).zfill(5)+".dat")
+                if self.run:
+                    os.remove("restart_flow_"+str(index_to_remove).zfill(5)+".dat")
                 new_checkpoint = Checkpoints(i+1, level+1)
                 self.checkpoints.append(new_checkpoint)
         for j in range(len(self.checkpoints)):
@@ -105,11 +113,12 @@ class CheckpointDriver:
         
         if i-1 in current_checkpoints:
             self.number_of_timesteps -= 1
-            self.SU2DriverAD.Preprocess(i)
-            self.SU2DriverAD.Run()
-            self.SU2DriverAD.Postprocess()
-            self.SU2DriverAD.Output(i)
-            self.SU2DriverAD.Update()
+            if self.run:
+                self.SU2DriverAD.Preprocess(i)
+                self.SU2DriverAD.Run()
+                self.SU2DriverAD.Postprocess()
+                self.SU2DriverAD.Output(i)
+                self.SU2DriverAD.Update()
             self.checkpoints.pop(current_checkpoints.index(i-1))
            
         else:
@@ -120,24 +129,26 @@ class CheckpointDriver:
 
             new_checkpoints = self.get_checkpoint_locations()
             self.number_of_timesteps -=1
-            self.SU2DriverAD.Preprocess(i)
-            self.SU2DriverAD.Run()
-            self.SU2DriverAD.Postprocess()
-            self.SU2DriverAD.Output(i)
-            self.SU2DriverAD.Update()
-            
-            os.remove("restart_flow_"+str(self.checkpoints[new_checkpoints.index(i-1)].i).zfill(5)+".dat")
+            if self.run:
+                self.SU2DriverAD.Preprocess(i)
+                self.SU2DriverAD.Run()
+                self.SU2DriverAD.Postprocess()
+                self.SU2DriverAD.Output(i)
+                self.SU2DriverAD.Update()
+                
+                os.remove("restart_flow_"+str(self.checkpoints[new_checkpoints.index(i-1)].i).zfill(5)+".dat")
             self.checkpoints.pop(new_checkpoints.index(i-1))
-        print(i-1)
+        # print(i-1)
     def garbage_collector(self):
-        for i in range(self.SU2DriverAD.GetNumberTimeIter()):
-           
-            if i not in self.get_checkpoint_locations():
-                try:
-                    os.remove("restart_flow_"+str(i).zfill(5)+".dat")
-                except:
-                    pass
-              
+        if self.run:
+            for i in range(self.SU2DriverAD.GetNumberTimeIter()):
+            
+                if i not in self.get_checkpoint_locations():
+                    try:
+                        os.remove("restart_flow_"+str(i).zfill(5)+".dat")
+                    except:
+                        pass
+                
         
     def get_checkpoint_locations(self):
         check_pts = []
@@ -151,16 +162,18 @@ class CheckpointDriver:
     def run_calculation(self, n_of_timesteps):
         for i in range(n_of_timesteps):
             self.advance_solution(i)
-            print(self.get_checkpoint_locations)
-        print("Begining adjoint run")
+            # print(self.get_checkpoint_locations)
+        # print("Begining adjoint run")
         for i in range(n_of_timesteps+1,0, -1):
             self.garbage_collector()        
             self.advance_adjoint(i)
-        for i in range(n_of_timesteps+1):
-            os.rename("restart_adj_cd_"+str(i+1).zfill(5)+".dat","restart_adj_cd_"+str(i).zfill(5)+".dat")
+        if self.run:
+            for i in range(n_of_timesteps+1):
+                os.rename("restart_adj_cd_"+str(i+1).zfill(5)+".dat","restart_adj_cd_"+str(i).zfill(5)+".dat")
 
     def __del__(self):
-        self.SU2DriverAD.Finalize()
+        if self.run:
+            self.SU2DriverAD.Finalize()
 def main():
     test = os.listdir("/home/filip/SU2/SU2/TestCases/py_wrapper/checkpointing")
 
@@ -170,19 +183,23 @@ def main():
     
     os.system("cp unsteady_naca0012_FFD.su2 mesh_in.su2")
     test = os.listdir("/home/filip/SU2/SU2/TestCases/py_wrapper/checkpointing")
+    with open("results.txt", "w+") as result:
+        for j in [10, 25, 50, 100]:
+            result.write("Number of checkpoints: " + str(j)+"\n")
+            for number_of_calcs in [1000, 2500, 5000, 7500, 10000, 25000, 50000,75000,100000]:
+                
+                # number_of_calcs = 2**i
+                print(number_of_calcs)
+                # for item in test:
+                    # if item.endswith(".dat"):
+                        # os.remove(os.path.join("/home/filip/SU2/SU2/TestCases/py_wrapper/checkpointing", item))
 
-    for i in range(1):
-
-        for item in test:
-            if item.endswith(".dat"):
-                os.remove(os.path.join("/home/filip/SU2/SU2/TestCases/py_wrapper/checkpointing", item))
-
-        driver = CheckpointDriver(10, "common.cfg", "unsteady_naca0012_opt_ad.cfg")
-        driver.run_calculation(29)
-
-        del driver
-        os.rename("surface_deformed_00000.vtu", "surface_deformed_"+str(i).zfill(5)+".vtu")
-        os.rename("mesh_out.su2", "mesh_in.su2")
+                driver = CheckpointDriver(j+1 , "common.cfg", "unsteady_naca0012_opt_ad.cfg", run=False)
+                driver.run_calculation(number_of_calcs)
+                result.write(str(number_of_calcs) + " " + str(driver.direct_computation_number/number_of_calcs-1)+ "\n")
+                del driver
+            # os.rename("surface_deformed_00000.vtu", "surface_deformed_"+str(i).zfill(5)+".vtu")
+        # os.rename("mesh_out.su2", "mesh_in.su2")
 if __name__ == "__main__":
     """ This is executed when run from the command line """
     main()
