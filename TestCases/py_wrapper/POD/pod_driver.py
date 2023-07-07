@@ -11,6 +11,7 @@ from mpi4py import MPI
 import SU2
 import shutil
 from matplotlib import pyplot as plt
+import copy
 class PodDriver:
     def __init__(self, config_path, n_of_modes, n_of_fields, n_of_points):
         self.header = ["\"Pressure\"","\"Velocity_x\"","\"Velocity_y\"","\"Nu_Tilde\"","\"Pressure_Coefficient\"","\"Density\"","\"Laminar_Viscosity\"","\"Heat_Capacity\"","\"Thermal_Conductivity\"","\"Skin_Friction_Coefficient_x\"","\"Skin_Friction_Coefficient_y\"","\"Heat_Flux\"","\"Y_Plus\"","\"Eddy_Viscosity\""]
@@ -118,10 +119,28 @@ class PodDriver:
         print(data_to_write.shape)
         np.savetxt(file, data_to_write.transpose(), delimiter=", ")
         file.close()
+    def drive_adjoint(self):
+        comm = MPI.COMM_WORLD
+        rank = comm.Get_rank()
+        ad_config = copy.deepcopy(self.main_config)
+        ad_config['MATH_PROBLEM'] = "DISCRETE_ADJOINT"
+        ad_config.dump("tmp_ad.cfg")
+        AD_driver = pysu2ad.CDiscAdjSinglezoneDriver("tmp_ad.cfg", 1,comm)
+        current_ad_step = 0  
+        for i in range(self.n_of_timesteps,0, -1):
+            print(i)
+            self.get_timestep(i-1)
+            AD_driver.Preprocess(current_ad_step)
+            AD_driver.Run()
+            AD_driver.Postprocess()
+            AD_driver.Output(current_ad_step)
+            AD_driver.Update()
+            current_ad_step += 1
 def main():
-    driver = PodDriver("cylinder.cfg", 10,5, 4791)
-    driver.reduce_flow()
-    driver.get_timestep(5)
+    for i in range(5):
+        driver = PodDriver("cylinder.cfg", 10*(i+1),5, 4791)
+        driver.reduce_flow()
+        driver.drive_adjoint()
     # fig, ax = plt.subplots()
     
     # # print(driver.ids)
