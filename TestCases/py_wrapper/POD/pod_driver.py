@@ -38,10 +38,10 @@ class PodDriver:
 
         comm = MPI.COMM_WORLD
         rank = comm.Get_rank()
-        shutil.rmtree("10")
+        shutil.rmtree(str(self.n_of_modes))
         os.mkdir(str(self.n_of_modes))
 
-        shutil.copy(self.main_config["MESH_FILENAME"], "10")
+        shutil.copy(self.main_config["MESH_FILENAME"], str(self.n_of_modes))
         os.chdir(str(self.n_of_modes))
         self.main_config.dump("tmp.cfg")
         SU2Driver = pysu2.CSinglezoneDriver("tmp.cfg", 1,comm)
@@ -106,7 +106,7 @@ class PodDriver:
         file = open(file_name, "w+")
         data_to_write = np.empty([self.n_of_fields+3, self.n_of_points])
         data_to_write[0,:] = self.ids
-        print(data_to_write[0,:])
+   
         data_to_write[1,:] = self.x
         data_to_write[2,:] = self.y
         first_line = self.front_header
@@ -116,7 +116,6 @@ class PodDriver:
         first_line = first_line[0:-2]
         first_line = first_line + "\n"
         file.write(first_line)
-        print(data_to_write.shape)
         np.savetxt(file, data_to_write.transpose(), delimiter=", ")
         file.close()
     def drive_adjoint(self):
@@ -128,7 +127,7 @@ class PodDriver:
         AD_driver = pysu2ad.CDiscAdjSinglezoneDriver("tmp_ad.cfg", 1,comm)
         current_ad_step = 0  
         for i in range(self.n_of_timesteps,0, -1):
-            print(i)
+            
             self.get_timestep(i-1)
             AD_driver.Preprocess(current_ad_step)
             AD_driver.Run()
@@ -141,6 +140,7 @@ def main():
         driver = PodDriver("cylinder.cfg", 10*(i+1),5, 4791)
         driver.reduce_flow()
         driver.drive_adjoint()
+        os.chdir("..")
     # fig, ax = plt.subplots()
     
     # # print(driver.ids)
