@@ -38,7 +38,10 @@ class PodDriver:
 
         comm = MPI.COMM_WORLD
         rank = comm.Get_rank()
-        shutil.rmtree(str(self.n_of_modes))
+        try:
+            shutil.rmtree(str(self.n_of_modes))
+        except:
+            pass
         os.mkdir(str(self.n_of_modes))
 
         shutil.copy(self.main_config["MESH_FILENAME"], str(self.n_of_modes))
