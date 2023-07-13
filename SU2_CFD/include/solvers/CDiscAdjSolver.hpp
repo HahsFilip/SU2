@@ -57,8 +57,8 @@ protected:
   su2double Total_Sens_BPress;   /*!< \brief Total sensitivity to outlet pressure. */
   su2double Total_Sens_Density;  /*!< \brief Total sensitivity to initial density (incompressible). */
   su2double Total_Sens_ModVel;   /*!< \brief Total sensitivity to inlet velocity (incompressible). */
-  su2double Mach, Alpha, Beta, Pressure, Temperature, BPressure, ModVel;
-  su2double TemperatureRad, Total_Sens_Temp_Rad;
+  su2double Mach, Alpha, Beta, Pressure, Temperature, BPressure, ModVel, Rotation;
+  su2double TemperatureRad, Total_Sens_Temp_Rad, Total_Sens_Rotation;
 
   CDiscAdjVariable* nodes = nullptr;  /*!< \brief The highest level in the variable hierarchy this solver can safely use. */
 
@@ -172,6 +172,7 @@ public:
    */
   inline su2double GetTotal_Sens_Temp() const override { return Total_Sens_Temp; }
 
+  inline su2double GetTotal_Sens_Rotation() const override { return Total_Sens_Rotation;}
   /*!
    * \author H. Kline
    * \brief Get the total Back pressure number sensitivity coefficient.

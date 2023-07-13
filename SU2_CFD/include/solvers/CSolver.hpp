@@ -3076,6 +3076,7 @@ public:
    *         (inviscid + viscous contribution).
    */
   inline virtual su2double GetTotal_Sens_Temp() const { return 0; }
+  inline virtual su2double GetTotal_Sens_Rotation() const  { return 0;}
 
   /*!
    * \author H. Kline

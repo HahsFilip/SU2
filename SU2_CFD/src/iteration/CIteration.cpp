@@ -35,6 +35,7 @@ void CIteration::SetGrid_Movement(CGeometry** geometry, CSurfaceMovement* surfac
                                   unsigned long IntIter, unsigned long TimeIter) {
   unsigned short Kind_Grid_Movement = config->GetKind_GridMovement();
   bool adjoint = config->GetContinuous_Adjoint();
+  cout << "DID YOU GET HERE:\n\n\n\n";
 
   unsigned short val_iZone = config->GetiZone();
 
