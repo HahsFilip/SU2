@@ -185,7 +185,7 @@ void CDiscAdjSolver::RegisterVariables(CGeometry *geometry, CConfig *config, boo
     Mach                   = config->GetMach();
     Pressure               = config->GetPressure_FreeStreamND();
     Temperature            = config->GetTemperature_FreeStreamND();
-
+   
     su2double SoundSpeed = 0.0;
 
     if (nDim == 2) { SoundSpeed = config->GetVelocity_FreeStreamND()[0]*Velocity_Ref/(cos(Alpha)*Mach); }
@@ -284,7 +284,17 @@ void CDiscAdjSolver::RegisterVariables(CGeometry *geometry, CConfig *config, boo
     direct_solver->SetTemperature_Inf(TemperatureRad);
 
   }
+    if(config->GetSurface_Movement(MOVING_WALL)){
+      Rotation     = config->GetMarkerRotationRate(0, 2);
+      if(!reset){
+        AD::RegisterInput(Rotation);
+      }
+          
+      config->SetMarkerRotation_Rate(0, 2, Rotation);
 
+      geometry->SetWallVelocity(config, true);
+
+    }
   /*--- Here it is possible to register other variables as input that influence the flow solution
    * and thereby also the objective function. The adjoint values (i.e. the derivatives) can be
    * extracted in the ExtractAdjointVariables routine. ---*/
@@ -390,11 +400,12 @@ void CDiscAdjSolver::ExtractAdjoint_Variables(CGeometry *geometry, CConfig *conf
     Local_Sens_AoA   = SU2_TYPE::GetDerivative(Alpha);
     Local_Sens_Temp  = SU2_TYPE::GetDerivative(Temperature);
     Local_Sens_Press = SU2_TYPE::GetDerivative(Pressure);
-
+  
     SU2_MPI::Allreduce(&Local_Sens_Mach,  &Total_Sens_Mach,  1, MPI_DOUBLE, MPI_SUM, SU2_MPI::GetComm());
     SU2_MPI::Allreduce(&Local_Sens_AoA,   &Total_Sens_AoA,   1, MPI_DOUBLE, MPI_SUM, SU2_MPI::GetComm());
     SU2_MPI::Allreduce(&Local_Sens_Temp,  &Total_Sens_Temp,  1, MPI_DOUBLE, MPI_SUM, SU2_MPI::GetComm());
     SU2_MPI::Allreduce(&Local_Sens_Press, &Total_Sens_Press, 1, MPI_DOUBLE, MPI_SUM, SU2_MPI::GetComm());
+
   }
 
   if ((config->GetKind_Regime() == ENUM_REGIME::COMPRESSIBLE) && (KindDirect_Solver == RUNTIME_FLOW_SYS) && config->GetBoolTurbomachinery()){
@@ -437,7 +448,17 @@ void CDiscAdjSolver::ExtractAdjoint_Variables(CGeometry *geometry, CConfig *conf
   }
 
   /*--- Extract here the adjoint values of everything else that is registered as input in RegisterInput. ---*/
-
+   if(config->GetSurface_Movement(MOVING_WALL)){
+    su2double Local_Sens_Rotation;
+    Local_Sens_Rotation = SU2_TYPE::GetDerivative(Rotation);
+    SU2_MPI::Allreduce(&Local_Sens_Rotation, &Total_Sens_Rotation, 1, MPI_DOUBLE, MPI_SUM, SU2_MPI::GetComm());
+    cout << "Rotation sanity\n";
+    cout << Rotation;
+    cout << "\n";
+    cout << "Sens_rotation\n";
+    cout << Total_Sens_Rotation<<"\n";
+  
+   }
   }
   END_SU2_OMP_SAFE_GLOBAL_ACCESS
 }
