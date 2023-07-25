@@ -184,6 +184,7 @@ void CAdjFlowIncOutput::SetHistoryOutputFields(CConfig *config) {
   /// DESCRIPTION: Sensitivity of the objective function with respect to the outlet pressure.
   AddHistoryOutput("SENS_PRESS_OUT",  "Sens_Pout",  ScreenOutputFormat::SCIENTIFIC, "SENSITIVITY", "Sensitivity of the objective function with respect to the outlet pressure.", HistoryFieldType::COEFFICIENT);
   /// END_GROUP
+  AddHistoryOutput("SENS_ROT",  "Sens_Rot",  ScreenOutputFormat::SCIENTIFIC, "SENSITIVITY", "Sensitivity of the objective function with respect to the far-field temperature.", HistoryFieldType::COEFFICIENT);
 
   AddHistoryOutput("LINSOL_ITER", "LinSolIter", ScreenOutputFormat::INTEGER, "LINSOL", "Number of iterations of the linear solver.");
   AddHistoryOutput("LINSOL_RESIDUAL", "LinSolRes", ScreenOutputFormat::FIXED, "LINSOL", "Residual of the linear solver.");
@@ -273,7 +274,10 @@ void CAdjFlowIncOutput::LoadHistoryData(CConfig *config, CGeometry *geometry, CS
     SetHistoryOutputValue("DEFORM_ITER", mesh_solver->System.GetIterations());
     SetHistoryOutputValue("DEFORM_RESIDUAL", log10(mesh_solver->System.GetResidual()));
   }
+  if(config->GetSurface_Movement(MOVING_WALL)){
+    SetHistoryOutputValue("SENS_ROT", adjflow_solver->GetTotal_Sens_Rotation());
 
+  }
   LoadHistoryDataAdjScalar(config, solver);
 
   ComputeSimpleCustomOutputs(config);
