@@ -37,7 +37,7 @@ def compute_gradients(control_array, configs):
     configs[1].dump(ad_cfg_name)
     with open(bash_name,"w+") as f:
         f.write("#!/bin/bash\n")
-        f.write("mpirun --use-hwthread-cpus python optimization_driver.py -f "+ c_array + " -d " + dir_cfg_name + " -a " + ad_cfg_name + " -n "+ str(n_steps))
+        f.write("mpirun --use-hwthread-cpus python3 optimization_driver.py -f "+ c_array + " -d " + dir_cfg_name + " -a " + ad_cfg_name + " -n "+ str(n_steps))
     os.system("chmod +rwx "+ bash_name)
     result = subprocess.run("./"+bash_name, shell=True)
     direct_history = np.genfromtxt(configs[0]["CONV_FILENAME"]+".csv", dtype=float, delimiter=',', names=True)
