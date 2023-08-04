@@ -30,7 +30,9 @@ class OptimizationDriver:
     def primary_calc(self):
         timing_file = open("times.txt", "w+")
         comm = MPI.COMM_WORLD
+        print(comm)
         rank = comm.Get_rank()
+
         SU2Driver = pysu2.CSinglezoneDriver(self.tmp_direct_name,1, comm)
         start_time = time.time()
 
