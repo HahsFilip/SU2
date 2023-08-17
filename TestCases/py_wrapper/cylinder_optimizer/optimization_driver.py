@@ -15,17 +15,17 @@ import SU2
 class OptimizationDriver:
     
     
-    def __init__(self, direct_path, adjoint_path, time_steps,  path_to_control_array) -> None:
+    def __init__(self, direct_path, adjoint_path, time_steps,  path_to_control_array, ad_steps, offset) -> None:
         self.tmp_direct_name = direct_path
         self.tmp_ad_name = adjoint_path
-        
+        self.ad_time_steps = int(ad_steps)
         # self.direct_path = h
-       
+        self.offset = int(offset)
  
         # self.adjoint_path = 
         
         self.control_array = np.loadtxt(path_to_control_array)
-        self.time_steps = time_steps
+        self.time_steps = time_steps+self.offset
 
     def primary_calc(self):
         timing_file = open("times.txt", "w+")
@@ -36,8 +36,8 @@ class OptimizationDriver:
         SU2Driver = pysu2.CSinglezoneDriver(self.tmp_direct_name,1, comm)
         start_time = time.time()
 
-        for i in range(self.time_steps):
-            SU2Driver.SetMarkerRotationRate(0,0,0,self.control_array[i])
+        for i in range(self.offset, self.time_steps):
+            SU2Driver.SetMarkerRotationRate(0,0,0,self.control_array[i-self.offset])
 
             SU2Driver.Preprocess(i)
             SU2Driver.Run()
@@ -53,10 +53,11 @@ class OptimizationDriver:
     def adjoint_calc(self):
         comm = MPI.COMM_WORLD
         rank = comm.Get_rank()
+        print("here")
         SU2DriverAD = pysu2ad.CDiscAdjSinglezoneDriver(self.tmp_ad_name,1, comm)
 
-        for i in range(self.time_steps):
-            SU2DriverAD.SetMarkerRotationRate(0,0,0,self.control_array[self.time_steps-1-i])
+        for i in range(self.ad_time_steps):
+            SU2DriverAD.SetMarkerRotationRate(0,0,0,self.control_array[self.time_steps-1-i-self.offset])
             SU2DriverAD.Preprocess(i)
             SU2DriverAD.Run()
             SU2DriverAD.Postprocess()
@@ -82,11 +83,17 @@ def main():
     parser.add_option(
         "-n", "--nn", dest="n_steps", help="read config from FILE", metavar="FILE"
     )
+    parser.add_option(
+        "-t", "--tt", dest="ad_steps", help="read config from FILE", metavar="FILE"
+    )
+    parser.add_option(
+        "-o", "--oo", dest="offset", help="read config from FILE", metavar="FILE"
+    )
     (options, args) = parser.parse_args()
     
     n_steps = int(options.n_steps)
     print(options.dir_config)
-    main_driver = OptimizationDriver(options.dir_config, options.ad_config,n_steps, options.filename )
+    main_driver = OptimizationDriver(options.dir_config, options.ad_config,n_steps, options.filename, options.ad_steps, options.offset )
     main_driver.primary_calc()
     main_driver.adjoint_calc()
     
