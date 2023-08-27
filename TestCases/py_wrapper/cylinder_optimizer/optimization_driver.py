@@ -24,7 +24,9 @@ class OptimizationDriver:
  
         # self.adjoint_path = 
         
-        self.control_array = np.loadtxt(path_to_control_array)
+        self.control_array_tmp = np.loadtxt(path_to_control_array)
+        self.control_array = np.zeros(len(self.control_array_tmp))
+        self.control_array[0:-2] = self.control_array_tmp[0:-2] 
         self.time_steps = time_steps+self.offset
 
     def primary_calc(self):

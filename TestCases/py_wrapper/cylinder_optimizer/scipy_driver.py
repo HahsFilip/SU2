@@ -80,25 +80,28 @@ def compute_gradients(control_array, configs, n_steps):
     return (goal_function, gradient)
 def main():
     global iter
-    iter = 100
+    iter = 1
     direct_config = SU2.io.Config("cylinder.cfg")
     adjoint_config = SU2.io.Config("cylinder_adjoint.cfg")
-    start_vector = np.loadtxt("control_array.txt")
-    # start_vector = np.zeros(200)
+    # start_vector = np.loadtxt("control_array.txt")
+    start_vector = np.zeros(30)
     eps_values = open("eps.txt", "w+")
     # compute_gradients(start_vector, (direct_config, adjoint_config))
-    eps = 25
+    eps = 500
     old_grad = 1000
     old_goal = 1000
-    for i in range(200):
-        (goal, grad) = compute_gradients(start_vector, [direct_config, adjoint_config],600)
-        start_vector = start_vector+eps*grad
+    for i in range(2000):
+        (goal, grad) = compute_gradients(start_vector, [direct_config, adjoint_config],430)
         if  old_goal < goal:
-            eps = eps/1.1
+
+            eps = eps/2
+            start_vector = start_vector+eps*old_grad
+
         elif old_goal > goal:
-            eps = eps*1
-        old_grad = np.mean(np.abs(grad))
-        old_goal = goal
+            start_vector = start_vector+eps*grad
+
+            old_grad = grad
+            old_goal = goal
         eps_values.write(str(eps)+"\n")
         # shutil.copytree("tmp_dir_for_grad", "tmp_dir_for_grad_"+str(i))
     opt = {'maxiter': 3}

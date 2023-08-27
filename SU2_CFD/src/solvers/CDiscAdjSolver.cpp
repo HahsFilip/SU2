@@ -290,7 +290,7 @@ void CDiscAdjSolver::RegisterVariables(CGeometry *geometry, CConfig *config, boo
         AD::RegisterInput(Rotation);
       }
           
-      config->SetMarkerRotation_Rate(0, 2, Rotation);
+      config->SetMarkerRotationRate(0, 2, Rotation);
 
       geometry->SetWallVelocity(config, true);
 
@@ -452,12 +452,7 @@ void CDiscAdjSolver::ExtractAdjoint_Variables(CGeometry *geometry, CConfig *conf
     su2double Local_Sens_Rotation;
     Local_Sens_Rotation = SU2_TYPE::GetDerivative(Rotation);
     SU2_MPI::Allreduce(&Local_Sens_Rotation, &Total_Sens_Rotation, 1, MPI_DOUBLE, MPI_SUM, SU2_MPI::GetComm());
-    cout << "Rotation sanity\n";
-    cout << Rotation;
-    cout << "\n";
-    cout << "Sens_rotation\n";
-    cout << Total_Sens_Rotation<<"\n";
-  
+
    }
   }
   END_SU2_OMP_SAFE_GLOBAL_ACCESS
