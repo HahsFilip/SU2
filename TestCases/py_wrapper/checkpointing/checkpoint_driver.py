@@ -5,6 +5,10 @@ from math import *
 import os
 import pysu2ad
 from mpi4py import MPI
+import numpy as np
+
+from matplotlib import pyplot as plt
+plt.ioff()
 class Checkpoints:
     def __init__(self, i, l) -> None:
         self.i = i
@@ -28,9 +32,10 @@ class CheckpointDriver:
         self.checkpoints.append(Checkpoints(0,1000000))
         self.direct_cfg = direct_conf
         self.adjoint_cfg = adjoint_conf
-        self.ad_comm = MPI.COMM_WORLD
-        self.ad_rank = self.ad_comm.Get_rank()
+
         if run:
+            self.ad_comm = MPI.COMM_WORLD
+            self.ad_rank = self.ad_comm.Get_rank()
             self.run = True
             self.SU2DriverAD = pysu2ad.CDiscAdjSinglezoneDriver(self.adjoint_cfg, 1,1)     
         else:
@@ -89,7 +94,7 @@ class CheckpointDriver:
                 # print("removed cp: " + str(ind_of_max_disp))
                 if self.run:
                     os.remove("restart_flow_"+str(self.checkpoints[ind_of_max_disp].i).zfill(5)+".dat")
-
+             
                 self.checkpoints.pop(ind_of_max_disp)
 
                 new_checkpoint = Checkpoints(i+1, 0)
@@ -98,7 +103,7 @@ class CheckpointDriver:
                 
                 level = self.checkpoints[-1].level
                 index_to_remove = self.checkpoints[-1].i
-
+                
                 self.checkpoints.pop(-1)
                 if self.run:
                     os.remove("restart_flow_"+str(index_to_remove).zfill(5)+".dat")
@@ -166,7 +171,7 @@ class CheckpointDriver:
     def print_checkpoints(self):
         with open("check_point_log.txt", "a+") as f:
             for point in self.checkpoints:
-                print(str(point.i) + "  " + str(point.level) + "  " + str(point.dispensable))
+                # print(str(point.i) + "  " + str(point.level) + "  " + str(point.dispensable))
                 f.write(str(point.i) + " ")
             f.write("\n")
             
@@ -190,25 +195,111 @@ class CheckpointDriver:
         if self.run:
             self.SU2DriverAD.Finalize()
 def main():
-    test = os.listdir("/home/filip/SU2/SU2/TestCases/py_wrapper/checkpointing")
-    try:
-        os.remove("check_point_log.txt")
-        os.remove("adjoint_log.txt")
-    except:
-        pass
+    # test = os.listdir("/home/filip/SU2/SU2/TestCases/py_wrapper/checkpointing")
+    # fig, axs = plt.subplots(1)
+    # axs = axs.reshape(-1)
+    i = 0
+    plt.figure(figsize=(10,4.5))
+    for n_of_points in [15]:
+        try:
+            os.remove("check_point_log.txt")
+            os.remove("adjoint_log.txt")
+        except:
+            pass
 
-    for item in test:
-        if item.endswith(".dat") or item.endswith(".vtu"):
-            os.remove(os.path.join("/home/filip/SU2/SU2/TestCases/py_wrapper/checkpointing", item))
-    
-    os.system("cp unsteady_naca0012_FFD.su2 mesh_in.su2")
-    test = os.listdir("/home/filip/SU2/SU2/TestCases/py_wrapper/checkpointing")
-    driver = CheckpointDriver(4, "common.cfg", "unsteady_naca0012_opt_ad.cfg", run=False)
-    driver.run_calculation(25)
+        # for item in test:
+        # #     if item.endswith(".dat") or item.endswith(".vtu"):
+        # #         os.remove(os.path.join("/home/filip/SU2/SU2/TestCases/py_wrapper/checkpointing", item))
+        
+        # # os.system("cp unsteady_naca0012_FFD.su2 mesh_in.su2")
+        # # test = os.listdir("/home/filip/SU2/SU2/TestCases/py_wrapper/checkpointing")
+        
+        # n_of_calculations = []
+        # timestep_array = [25]
+        # print(timestep_array)
+        # # timestep_array = timestep_array.astype(int)
+        
+        driver = CheckpointDriver(n_of_points, "common.cfg", "unsteady_naca0012_opt_ad.cfg", run=False)
+
+        # # print(i)
+        # # print(n_timesteps)
+        driver.run_calculation(20)
+        # # i = 0
+        # ad_steps = []
+        # ad_inds = []
+        # max_step = 40
+        # old_points = [0]
+        # flag_start_adjoint = False
+        i = 0
+        
+        with open("check_point_log.txt", 'r') as log:
+            # print(log)
+            for line in log.readlines():
+                points = np.fromstring(line, sep=" ")
+                if i == 0:
+                    plt.scatter(np.ones(points.shape[0])*i, points, color = "black", marker='.', label="Checkpoints")
+                else:
+                    plt.scatter(np.ones(points.shape[0])*i, points, color = "black", marker='.')
+
+                i+=1
+        plt.vlines(20, 0, 22, color = 'red', label="Start of adjoint calculation")
+        plt.xlabel("Evolution of the algorithm", fontsize=12)
+        plt.ylabel("Timestep", fontsize=12)
+        plt.title("Checkpointing schedule", fontsize=15)
+        plt.legend()
+        plt.show()
+        #         difference = list(set(points)-set(old_points))
+        #         difference_2 = list(set(old_points)-set(points))
+
+        #         if not len(difference) == 0 and not len(old_points) == 0:
+        #             print( difference_2)
+
+        #             axs.plot( [max(old_points), difference[0]], np.ones(2),  c="r")
+
+        #         if i == 0:
+        #             axs.scatter(  points,np.ones(points.size), c="b", marker=",", s=15, label="Checkpoint")
+        #         else:
+        #             axs.scatter(  points, np.ones(points.size),c="b", marker=",", s=15,label="Checkpoint")
+        #             print("here")
+        #         if max(points) == max_step:
+        #             flag_start_adjoint = True
+        #         if flag_start_adjoint:
+        #             axs.scatter( max_step,1, c="g",marker=",",  s=15, label="Adjoint")
+        #         if max(points) == max_step -1 and flag_start_adjoint:    
+        #             axs.plot( [max(points), max_step],  np.ones(2),c="g")
+
+        #             max_step = max(points)
+        #         i += 1
+        #         # plt.title(str(i))
+        #         axs.set_xlabel("Timestep")
+        #         axs.legend()
+        #         axs.set_title("6 checkpoints, 40 timesteps")
+        #         # axs.spines['left'].set_visible(False)
+        #         axs.get_yaxis().set_visible(False)
+        #         fig.savefig("test/cpoints{}.png".format(i))
+                
+        #         axs.clear()
+                
+        #         print(difference)
+        #         old_points = points
+                # plt.show()
+    #         del driver
+    #     axs[i].plot(timestep_array, n_of_calculations)
+    #     axs[i].set_xlabel("Timesteps")
+    #     axs[i].set_ylabel("Recalculations")
+    #     axs[i].set_title("{} checkpoints".format(n_of_points))
+        # i += 1
+    # fig.savefig("recalculations.png")
+    # fig.show()
+    # fig.suptitle("Average number of recalculations")
+
     # with open("results.txt", "w+") as result:
     #     for j in [10, 25, 50, 100]:
+    #         n_for_plot = []
     #         result.write("Number of checkpoints: " + str(j)+"\n")
-    #         for number_of_calcs in [1000, 2500, 5000, 7500, 10000, 25000, 50000,75000,100000]:
+    #         lengths_to_eval = np.logspace(3, 5, 9, dtype=int)
+    #         print(lengths_to_eval)
+    #         for number_of_calcs in lengths_to_eval:
                 
     #             # number_of_calcs = 2**i
     #             print(number_of_calcs)
@@ -217,9 +308,23 @@ def main():
     #                     # os.remove(os.path.join("/home/filip/SU2/SU2/TestCases/py_wrapper/checkpointing", item))
 
     #             driver = CheckpointDriver(j+2 , "common.cfg", "unsteady_naca0012_opt_ad.cfg", run=False)
+    #             print("here")
     #             driver.run_calculation(number_of_calcs)
-    #             result.write(str(number_of_calcs) + " " + str(driver.direct_computation_number/number_of_calcs-1)+ "\n")
+    #             result.write(str(number_of_calcs) + " " + str(driver.direct_computation_number/number_of_calcs)+ "\n")
+    #             n_for_plot.append(driver.direct_computation_number/number_of_calcs)
     #             del driver
+    #         plt.figure(figsize=(10,4.5))
+    #         ax = plt.gca()
+
+    #         ax.scatter(lengths_to_eval, n_for_plot)
+    #         ax.set_yscale('log')
+    #         ax.set_xscale('log')
+    #         plt.title("Average number of recalculations, {} checkpoints".format(j), fontsize =15)
+    #         plt.xlabel("Number of timesteps", fontsize= 12)
+    #         plt.ylabel("Number of recalculations", fontsize= 12)
+    #         # plt.show()
+    #         plt.savefig("{}-pts.png".format(j))
+    #         plt.clf()
             # os.rename("surface_deformed_00000.vtu", "surface_deformed_"+str(i).zfill(5)+".vtu")
         # os.rename("mesh_out.su2", "mesh_in.su2")
 if __name__ == "__main__":
